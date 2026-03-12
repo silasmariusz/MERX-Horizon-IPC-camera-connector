@@ -193,9 +193,7 @@ class MerxHorizonClient:
     async def get_snapshot(self, channel: str = "CH1") -> bytes:
         """Get a snapshot from the camera."""
         payload = {
-            "channel": channel,
-            "snapshot_resolution": "640 x 480",
-            "reset_session_timeout": False
+            "channel": channel
         }
         try:
             response = await self._request("POST", "/API/Snapshot/Get", json_data=payload)
