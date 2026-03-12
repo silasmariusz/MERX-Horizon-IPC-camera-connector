@@ -109,12 +109,6 @@ class MerxHorizonCamera(Camera):
 
     async def async_ptz_control(self, cmd: str, speed: int, state: str = None) -> None:
         """Control PTZ."""
-        if state:
-            await self._client.control_ptz(self._channel, cmd, speed, state)
-        else:
-            # If no state is provided, some cameras prefer simply sending the command
-            # For others, a stop needs to be sent. We try just sending the command first,
-            # then stop after a brief moment to be safe.
-            await self._client.control_ptz(self._channel, cmd, speed, "Start")
-            await asyncio.sleep(0.5)
-            await self._client.control_ptz(self._channel, cmd, speed, "Stop")
+        # If state is provided (e.g. "Start" or "Stop" from a hold_action), pass it.
+        # Otherwise, just send the command once without a state.
+        await self._client.control_ptz(self._channel, cmd, speed, state)
