@@ -91,12 +91,12 @@ class MerxHorizonMediaSource(MediaSource):
             )
 
         if item.identifier.startswith("camera_"):
-            # Camera level: List dates (Today, Yesterday, 2 Days Ago)
+            # Camera level: List dates (Looking back up to 10 days)
             entry_id = item.identifier.replace("camera_", "")
             
             children = []
-            for i in range(3):
-                date = datetime.datetime.now() - datetime.timedelta(days=i)
+            for i in range(10): # Look back 10 days
+                    date = datetime.datetime.now() - datetime.timedelta(days=i)
                 date_str = date.strftime("%m-%d-%Y") # Use dashes for identifier to avoid URL routing issues
                 display_date = "Today" if i == 0 else "Yesterday" if i == 1 else date.strftime("%Y-%m-%d")
                 
@@ -151,6 +151,7 @@ class MerxHorizonMediaSource(MediaSource):
                     "end_date": date_str,
                     "end_time": "23:59:59",
                     "record_type": 4294967295,
+                    "record_type_ex": [4294967295],
                     "stream_mode": "Mainstream"
                 }
                 
