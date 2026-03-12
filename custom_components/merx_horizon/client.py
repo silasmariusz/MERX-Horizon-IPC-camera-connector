@@ -151,6 +151,20 @@ class MerxHorizonClient:
                             ) as retry_response:
                                 retry_response.raise_for_status()
                                 return await retry_response.json()
+                    elif "no_heartbeat" in text:
+                        # Session expired due to no heartbeat, try to re-login
+                        self.cookies = {}
+                        await self.logout()
+                        if await self.login():
+                            if self.token:
+                                headers["token"] = self.token
+                            if self.csrf_token:
+                                headers["X-csrftoken"] = self.csrf_token
+                            async with self.session.request(
+                                method, url, json=payload, headers=headers, cookies=self.cookies, timeout=10
+                            ) as retry_response:
+                                retry_response.raise_for_status()
+                                return await retry_response.json()
                     else:
                         _LOGGER.error("API Error 400: %s", text)
                         response.raise_for_status()
@@ -160,6 +174,17 @@ class MerxHorizonClient:
         except Exception as err:
             _LOGGER.error("Error communicating with MERX Horizon API: %s", err)
             raise
+
+    async def send_heartbeat(self) -> bool:
+        """Send a keep-alive heartbeat to the camera."""
+        payload = {"keep_alive": True}
+        try:
+            resp = await self._request("POST", "/API/Login/Heartbeat", json_data=payload)
+            if resp and resp.get("result") == "success":
+                return True
+        except Exception as err:
+            _LOGGER.debug("Heartbeat failed: %s", err)
+        return False
 
     async def get_device_info(self) -> Dict[str, Any]:
         """Get device information."""

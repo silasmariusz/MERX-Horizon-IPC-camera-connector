@@ -34,9 +34,19 @@ async def async_setup_entry(
     """Set up the MERX Horizon binary sensors from a config entry."""
     client: MerxHorizonClient = hass.data[DOMAIN][config_entry.entry_id]
 
+    # Add heartbeat timestamp
+    client.last_heartbeat = None
+    import time
+
     async def async_update_data():
         """Fetch data from API endpoint."""
         try:
+            # Check if we need to send a heartbeat (every 25 seconds)
+            current_time = time.time()
+            if getattr(client, "last_heartbeat", None) is None or current_time - client.last_heartbeat > 25:
+                await client.send_heartbeat()
+                client.last_heartbeat = current_time
+
             # Polling the /API/Event/Check endpoint
             events = await client.check_events()
             return events.get("data", {})

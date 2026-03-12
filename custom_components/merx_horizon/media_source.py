@@ -96,7 +96,7 @@ class MerxHorizonMediaSource(MediaSource):
             
             children = []
             for i in range(10): # Look back 10 days
-                    date = datetime.datetime.now() - datetime.timedelta(days=i)
+                date = datetime.datetime.now() - datetime.timedelta(days=i)
                 date_str = date.strftime("%m-%d-%Y") # Use dashes for identifier to avoid URL routing issues
                 display_date = "Today" if i == 0 else "Yesterday" if i == 1 else date.strftime("%Y-%m-%d")
                 
