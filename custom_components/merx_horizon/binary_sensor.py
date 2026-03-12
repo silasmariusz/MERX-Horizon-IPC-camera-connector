@@ -51,7 +51,10 @@ async def async_setup_entry(
         update_interval=SCAN_INTERVAL,
     )
 
-    await coordinator.async_config_entry_first_refresh()
+    try:
+        await coordinator.async_config_entry_first_refresh()
+    except Exception as ex:
+        _LOGGER.warning("First refresh failed, sensors will be created anyway: %s", ex)
 
     sensors = [
         MerxHorizonBinarySensor(coordinator, config_entry, "motion_alarm", "Motion Detection", BinarySensorDeviceClass.MOTION),

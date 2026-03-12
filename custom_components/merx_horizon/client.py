@@ -120,10 +120,16 @@ class MerxHorizonClient:
                         # Session conflict, try to re-login
                         self.cookies = {}
                         if await self.login():
+                            if self.token:
+                                headers["token"] = self.token
                             async with self.session.request(
                                 method, url, json=payload, headers=headers, cookies=self.cookies, timeout=10
                             ) as retry_response:
-                                response = retry_response
+                                retry_response.raise_for_status()
+                                return await retry_response.json()
+                    else:
+                        _LOGGER.error("API Error 400: %s", text)
+                        response.raise_for_status()
 
                 response.raise_for_status()
                 return await response.json()
@@ -161,7 +167,13 @@ class MerxHorizonClient:
 
     async def check_events(self) -> Dict[str, Any]:
         """Poll for events."""
-        return await self._request("POST", "/API/Event/Check")
+        payload = {
+            "plus_eventchk": "eventAiPushPic",
+            "ext_data": {
+                "subscribe_type": [{"event": ["all"]}]
+            }
+        }
+        return await self._request("POST", "/API/Event/Check", json_data=payload)
 
     async def search_recordings(self, channel: str, start_time: str, end_time: str) -> Dict[str, Any]:
         """Search for recordings on the SD card."""

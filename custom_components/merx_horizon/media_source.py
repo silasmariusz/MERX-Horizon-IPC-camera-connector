@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 from typing import Tuple
+import datetime
 
 from homeassistant.components.media_player import BrowseError, BrowseMedia
 from homeassistant.components.media_source.error import Unresolvable
@@ -17,6 +18,7 @@ from homeassistant.components.media_source.models import (
     PlayMedia,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.components.stream import create_stream
 
 from .const import DOMAIN
 
@@ -38,68 +40,168 @@ class MerxHorizonMediaSource(MediaSource):
 
     async def async_resolve_media(self, item: MediaSourceItem) -> PlayMedia:
         """Resolve media to a url."""
-        # In order to play RTSP streams in the browser via Home Assistant,
-        # we shouldn't return 'application/x-rtsp' because browsers don't support it natively.
-        # Instead, we should rely on Home Assistant's stream component to proxy it.
-        # For camera entities, HA handles this automatically, but for Media Source,
-        # we might need to return a format that HA can proxy, or use the camera entity's HLS stream.
-        
-        # However, for direct RTSP playback from Media Source, HA's stream component
-        # can handle 'application/x-rtsp' if the frontend supports it via HLS proxying,
-        # but sometimes it requires 'video/mp4' or similar if we are downloading the file.
-        # Since the API returns an RTSP URL for playback:
-        
         if not item.identifier.startswith("rtsp://"):
             raise Unresolvable("Invalid media identifier")
 
-        # Returning application/x-rtsp tells HA to use the stream component to convert it to HLS
-        return PlayMedia(item.identifier, "application/x-rtsp")
+        try:
+            # Create a stream to proxy the RTSP URL to HLS
+            stream = create_stream(self.hass, item.identifier, {}, item.identifier)
+            stream.add_provider("hls")
+            url = stream.endpoint_url("hls")
+            return PlayMedia(url, "application/vnd.apple.mpegurl")
+        except Exception as err:
+            _LOGGER.error("Failed to create stream: %s", err)
+            # Fallback
+            return PlayMedia(item.identifier, "application/x-rtsp")
 
     async def async_browse_media(
         self, item: MediaSourceItem
     ) -> BrowseMediaSource:
         """Return media."""
-        if item.identifier:
+        cameras = self.hass.data.get(DOMAIN, {})
+
+        if not item.identifier:
+            # Root level: List cameras
+            children = []
+            for entry_id, client in cameras.items():
+                children.append(
+                    BrowseMediaSource(
+                        domain=DOMAIN,
+                        identifier=f"camera_{entry_id}",
+                        media_class="directory",
+                        media_content_type="video",
+                        title=f"MERX Camera {client.host}",
+                        can_play=False,
+                        can_expand=True,
+                        thumbnail="/api/brands/integration/merx_horizon/icon.png"
+                    )
+                )
+
+            return BrowseMediaSource(
+                domain=DOMAIN,
+                identifier="",
+                media_class="directory",
+                media_content_type="video",
+                title=self.name,
+                can_play=False,
+                can_expand=True,
+                children_media_class="directory",
+                children=children,
+            )
+
+        if item.identifier.startswith("camera_"):
+            # Camera level: List dates (Today, Yesterday, 2 Days Ago)
+            entry_id = item.identifier.replace("camera_", "")
+            
+            children = []
+            for i in range(3):
+                date = datetime.datetime.now() - datetime.timedelta(days=i)
+                date_str = date.strftime("%m/%d/%Y")
+                display_date = "Today" if i == 0 else "Yesterday" if i == 1 else date.strftime("%Y-%m-%d")
+                
+                children.append(
+                    BrowseMediaSource(
+                        domain=DOMAIN,
+                        identifier=f"date_{entry_id}_{date_str}",
+                        media_class="directory",
+                        media_content_type="video",
+                        title=display_date,
+                        can_play=False,
+                        can_expand=True,
+                    )
+                )
+
             return BrowseMediaSource(
                 domain=DOMAIN,
                 identifier=item.identifier,
                 media_class="directory",
                 media_content_type="video",
-                title="Recordings",
+                title="Select Date",
+                can_play=False,
+                can_expand=True,
+                children_media_class="directory",
+                children=children,
+            )
+
+        if item.identifier.startswith("date_"):
+            # Date level: List recordings for that date
+            parts = item.identifier.split("_")
+            entry_id = parts[1]
+            date_str = parts[2] # MM/DD/YYYY
+            
+            client = cameras.get(entry_id)
+            if not client:
+                raise BrowseError("Camera not found")
+
+            children = []
+            
+            try:
+                # Search for recordings on this date
+                # record_type 4294967295 means all records
+                payload = {
+                    "channel": ["CH1"],
+                    "start_date": date_str,
+                    "start_time": "00:00:00",
+                    "end_date": date_str,
+                    "end_time": "23:59:59",
+                    "record_type": 4294967295,
+                    "stream_mode": "Mainstream"
+                }
+                
+                response = await client._request("POST", "/API/Playback/SearchRecord/Search", json_data=payload)
+                
+                if response and "data" in response and "record" in response["data"]:
+                    records = response["data"]["record"]
+                    if records and len(records) > 0:
+                        for rec in records[0]:
+                            start_time = rec.get("start_time", "")
+                            end_time = rec.get("end_time", "")
+                            rec_type = rec.get("record_type", 0)
+                            
+                            # Determine event type name
+                            type_name = "Normal"
+                            if rec_type & 0x2: type_name = "Alarm"
+                            if rec_type & 0x4: type_name = "Motion"
+                            if rec_type & 0x8: type_name = "IO Alarm"
+                            if rec_type & 0x80000: type_name = "Smart"
+                            if rec_type & 0x200000: type_name = "Person"
+                            if rec_type & 0x400000: type_name = "Face"
+                            
+                            # Construct RTSP playback URL
+                            # Format: rtsp://user:pass@ip:port/rtsp/playback?channel=1&subtype=0&starttime=YYYY-MM-DDTHH:MM:SSZ&endtime=...
+                            # We need to convert MM/DD/YYYY to YYYY-MM-DD
+                            m, d, y = date_str.split("/")
+                            iso_date = f"{y}-{m}-{d}"
+                            
+                            start_iso = f"{iso_date}T{start_time}Z"
+                            end_iso = f"{iso_date}T{end_time}Z"
+                            
+                            playback_url = f"rtsp://{client.username}:{client.password}@{client.host}:{client.port}/rtsp/playback?channel=1&subtype=0&starttime={start_iso}&endtime={end_iso}"
+                            
+                            children.append(
+                                BrowseMediaSource(
+                                    domain=DOMAIN,
+                                    identifier=playback_url,
+                                    media_class="video",
+                                    media_content_type="application/x-rtsp",
+                                    title=f"{start_time} - {end_time} ({type_name})",
+                                    can_play=True,
+                                    can_expand=False,
+                                )
+                            )
+            except Exception as err:
+                _LOGGER.error("Error fetching recordings: %s", err)
+
+            return BrowseMediaSource(
+                domain=DOMAIN,
+                identifier=item.identifier,
+                media_class="directory",
+                media_content_type="video",
+                title=f"Recordings for {date_str}",
                 can_play=False,
                 can_expand=True,
                 children_media_class="video",
-                children=[],
+                children=children,
             )
 
-        cameras = self.hass.data.get(DOMAIN, {})
-        children = []
-
-        for entry_id, client in cameras.items():
-            # For testing, we provide the RTSP playback URL
-            playback_url = f"rtsp://{client.username}:{client.password}@{client.host}:{client.port}/rtsp/playback?channel=1&subtype=0&starttime=2026-03-12T00:00:00Z&endtime=2026-03-12T23:59:59Z"
-            
-            children.append(
-                BrowseMediaSource(
-                    domain=DOMAIN,
-                    identifier=playback_url,
-                    media_class="video",
-                    media_content_type="application/x-rtsp",
-                    title=f"Camera {client.host} - Today's Recording",
-                    can_play=True,
-                    can_expand=False,
-                    thumbnail="/api/brands/integration/merx_horizon/icon.png" # Local brand icon
-                )
-            )
-
-        return BrowseMediaSource(
-            domain=DOMAIN,
-            identifier="",
-            media_class="directory",
-            media_content_type="video",
-            title=self.name,
-            can_play=False,
-            can_expand=True,
-            children_media_class="video",
-            children=children,
-        )
+        raise BrowseError(f"Unknown item: {item.identifier}")
