@@ -34,6 +34,7 @@ class MerxHorizonClient:
         self.cookies = {}
         self.auth_header = None
         self.token = None
+        self.csrf_token = None
 
     def _generate_digest_auth(self, method: str, path: str, authenticate_header: str) -> str:
         """Generate Digest Auth header."""
@@ -57,10 +58,22 @@ class MerxHorizonClient:
         
         return f'Digest username="{self.username}", realm="{realm}", nonce="{nonce}", uri="{path}", qop={qop}, nc={nc}, cnonce="{cnonce}", response="{response}"'
 
+    async def logout(self) -> bool:
+        """Logout from the camera."""
+        url = f"{self.base_url}/API/Web/Logout"
+        payload = {"version": "1.0", "data": {}}
+        try:
+            async with self.session.post(url, json=payload, headers={"Content-Type": "application/json"}, cookies=self.cookies) as resp:
+                if resp.status == 200:
+                    return True
+        except Exception:
+            pass
+        return False
+
     async def login(self) -> bool:
         """Login to the camera and get cookies."""
         url = f"{self.base_url}/API/Web/Login"
-        payload = {"version": "1.0", "data": {}}
+        payload = {"version": "1.0", "data": {"username": self.username, "password": self.password, "login_num": 5}}
         
         try:
             async with self.session.post(url, json=payload) as resp1:
@@ -76,6 +89,7 @@ class MerxHorizonClient:
                         async with self.session.post(url, json=payload, headers=headers) as resp2:
                             if resp2.status == 200:
                                 self.cookies = resp2.cookies
+                                self.csrf_token = resp2.headers.get('X-csrftoken')
                                 data = await resp2.json()
                                 if "data" in data and "token" in data["data"]:
                                     self.token = data["data"]["token"]
@@ -100,6 +114,8 @@ class MerxHorizonClient:
         headers = {"Content-Type": "application/json"}
         if self.token:
             headers["token"] = self.token
+        if self.csrf_token:
+            headers["X-csrftoken"] = self.csrf_token
             
         payload = {"version": "1.0", "data": json_data if json_data else {}}
 
@@ -108,7 +124,12 @@ class MerxHorizonClient:
                 method, url, json=payload, headers=headers, cookies=self.cookies, timeout=10
             ) as response:
                 if response.status == 401:
+                    await self.logout()
                     if await self.login():
+                        if self.token:
+                            headers["token"] = self.token
+                        if self.csrf_token:
+                            headers["X-csrftoken"] = self.csrf_token
                         async with self.session.request(
                             method, url, json=payload, headers=headers, cookies=self.cookies, timeout=10
                         ) as retry_response:
@@ -119,9 +140,12 @@ class MerxHorizonClient:
                     if "one_IE" in text:
                         # Session conflict, try to re-login
                         self.cookies = {}
+                        await self.logout()
                         if await self.login():
                             if self.token:
                                 headers["token"] = self.token
+                            if self.csrf_token:
+                                headers["X-csrftoken"] = self.csrf_token
                             async with self.session.request(
                                 method, url, json=payload, headers=headers, cookies=self.cookies, timeout=10
                             ) as retry_response:
