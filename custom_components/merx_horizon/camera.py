@@ -112,7 +112,9 @@ class MerxHorizonCamera(Camera):
         if state:
             await self._client.control_ptz(self._channel, cmd, speed, state)
         else:
-            # If no state is provided, assume a "step" action (Start then Stop after 1.5s)
+            # If no state is provided, some cameras prefer simply sending the command
+            # For others, a stop needs to be sent. We try just sending the command first,
+            # then stop after a brief moment to be safe.
             await self._client.control_ptz(self._channel, cmd, speed, "Start")
-            await asyncio.sleep(1.5)
+            await asyncio.sleep(0.5)
             await self._client.control_ptz(self._channel, cmd, speed, "Stop")
