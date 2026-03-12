@@ -55,10 +55,10 @@ async def async_setup_entry(
 
     sensors = [
         MerxHorizonBinarySensor(coordinator, config_entry, "motion_alarm", "Motion Detection", BinarySensorDeviceClass.MOTION),
-        MerxHorizonBinarySensor(coordinator, config_entry, "human_detected", "Human Detection", BinarySensorDeviceClass.OCCUPANCY),
-        MerxHorizonBinarySensor(coordinator, config_entry, "vehicle_detected", "Vehicle Detection", BinarySensorDeviceClass.OCCUPANCY),
-        MerxHorizonBinarySensor(coordinator, config_entry, "face_detected", "Face Detection", BinarySensorDeviceClass.OCCUPANCY),
-        MerxHorizonBinarySensor(coordinator, config_entry, "lpr_detected", "License Plate Detection", BinarySensorDeviceClass.OCCUPANCY),
+        MerxHorizonBinarySensor(coordinator, config_entry, "human_detected", "Human Detection", BinarySensorDeviceClass.OCCUPANCY, "mdi:human"),
+        MerxHorizonBinarySensor(coordinator, config_entry, "vehicle_detected", "Vehicle Detection", BinarySensorDeviceClass.OCCUPANCY, "mdi:car"),
+        MerxHorizonBinarySensor(coordinator, config_entry, "face_detected", "Face Detection", BinarySensorDeviceClass.OCCUPANCY, "mdi:face-recognition"),
+        MerxHorizonBinarySensor(coordinator, config_entry, "lpr_detected", "License Plate Detection", BinarySensorDeviceClass.OCCUPANCY, "mdi:car-info"),
     ]
 
     async_add_entities(sensors)
@@ -67,13 +67,15 @@ async def async_setup_entry(
 class MerxHorizonBinarySensor(CoordinatorEntity, BinarySensorEntity):
     """Representation of a MERX Horizon Binary Sensor."""
 
-    def __init__(self, coordinator, config_entry, event_key, name, device_class):
+    def __init__(self, coordinator, config_entry, event_key, name, device_class, icon=None):
         """Initialize the sensor."""
         super().__init__(coordinator)
         self._event_key = event_key
         self._attr_name = f"MERX Camera {config_entry.data['host']} {name}"
         self._attr_unique_id = f"{config_entry.entry_id}_{event_key}"
         self._attr_device_class = device_class
+        if icon:
+            self._attr_icon = icon
         
         self._attr_device_info = {
             "identifiers": {(DOMAIN, config_entry.entry_id)},

@@ -67,6 +67,13 @@ class MerxHorizonCamera(Camera):
         self._attr_supported_features = CameraEntityFeature.STREAM | CameraEntityFeature.ON_OFF
         self._attr_brand = "MERX"
         self._attr_model = "Horizon IPC"
+        self._attr_icon = "phu:merx-ipc-horizon-dome"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, config_entry.entry_id)},
+            "name": f"MERX Camera {self._host}",
+            "manufacturer": "MERX",
+            "model": "Horizon IPC",
+        }
 
     async def async_camera_image(
         self, width: int | None = None, height: int | None = None

@@ -88,7 +88,7 @@ class MerxHorizonMediaSource(MediaSource):
                     title=f"Camera {client.host} - Today's Recording",
                     can_play=True,
                     can_expand=False,
-                    thumbnail="https://brands.home-assistant.io/camera/icon.png" # Placeholder thumbnail
+                    thumbnail="/api/brands/integration/merx_horizon/icon.png" # Local brand icon
                 )
             )
 
