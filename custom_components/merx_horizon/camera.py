@@ -112,7 +112,7 @@ class MerxHorizonCamera(Camera):
         if state:
             await self._client.control_ptz(self._channel, cmd, speed, state)
         else:
-            # If no state is provided, assume a "step" action (Start then Stop after 0.5s)
+            # If no state is provided, assume a "step" action (Start then Stop after 1.5s)
             await self._client.control_ptz(self._channel, cmd, speed, "Start")
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(1.5)
             await self._client.control_ptz(self._channel, cmd, speed, "Stop")

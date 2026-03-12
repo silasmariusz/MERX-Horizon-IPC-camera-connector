@@ -185,7 +185,11 @@ class MerxHorizonClient:
         data = {
             "channel": channel,
             "cmd": cmd,
-            "speed": speed
+            "speed": speed,
+            "zoom_step": 5,
+            "zoom_slider": 1,
+            "focus_step": 1,
+            "focus_slider": 128
         }
         if state:
             data["state"] = state
