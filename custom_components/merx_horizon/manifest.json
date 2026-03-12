@@ -3,7 +3,7 @@
   "name": "MERX Horizon IPC Camera",
   "codeowners": ["@silasmariusz"],
   "config_flow": true,
-  "dependencies": ["ffmpeg", "stream"],
+  "dependencies": ["ffmpeg", "stream", "media_source"],
   "iot_class": "local_polling",
   "version": "1.0.0"
 }

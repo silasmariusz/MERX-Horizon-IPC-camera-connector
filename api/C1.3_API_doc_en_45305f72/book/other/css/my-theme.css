@@ -1,0 +1,32 @@
+:root {
+    --content-max-width: 1000px;
+}
+
+
+
+body {
+    font-size: 1.6rem;
+}
+.light {
+    
+
+    /* --inline-code-color: #c7254e; */
+    --inline-code-color: #5c7da3;
+    
+    --table-header-bg: #2578d8;
+}
+table thead th {
+    color: white;
+}
+table {
+    margin: unset;
+}
+.table_outer{
+    font-size: 0;
+}
+.table_inner{
+    font-size: 1.6rem;
+}
+table td{
+    line-height: 3.2rem;
+}

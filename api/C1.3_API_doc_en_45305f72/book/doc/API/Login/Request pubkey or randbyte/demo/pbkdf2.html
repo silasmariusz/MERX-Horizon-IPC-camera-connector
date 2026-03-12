@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>pbkdf2 crypto demo</title>
+    <script src="./secrypto_min.js"></script>
+    <style>
+        button{
+            width: 100px;
+            height: 35px;
+            background-color: #47a6ff;
+            border: none;
+            box-shadow: none;
+            border-radius: 5px;
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        button:hover{
+            background-color: white;
+            border: 1px solid #47a6ff;
+            color: #47a6ff;
+        }
+        input{
+            width: 300px;
+            height: 30px;
+            border: 2px solid #47a6ff;
+            border-radius: 5px;
+        }
+        label{
+            width: 150px;
+            display: block;
+            float: left;
+            line-height: 30px;
+            text-align: center;
+            
+        }
+        textarea{
+            border: 2px solid #47a6ff;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <label for="word">word:</label>
+    <input type="text" name="word" id="word">
+    <br>
+    <br>
+    <label for="salt">salt:</label>
+    <input type="text" name="salt" id="salt">
+    <br>
+    <br>
+    <label for="iter">iter:</label>
+    <input type="text" name="iter" id="iter">
+    <button id="commit" onclick="oncommit();">commit</button>
+    <br>
+    <br>
+    <label for="result">result:</label>
+    <textarea name="result" id="result" cols="60" rows="10"></textarea>
+    <script>
+        let salt = null;
+        let iter = null;
+        let word = '';
+        document.querySelector('#salt').value = 'VqISa/Lv8N6raGZBA3/XyRhjXekWKjJNMGFybSkFVEw=';
+        document.querySelector('#iter').value = '10086';
+        function test(){
+            console.log('salt: '+salt);
+            printResult('salt: '+salt);
+            console.log('iter:',iter);
+            printResult('iter: '+iter);
+            let result = mycrypto.pbkdf2(word, salt, iter, 32, 'sha256');
+            console.log('word: '+word);
+            printResult('word: '+word);
+            console.log('encrypted:',result);
+            printResult('encrypted: '+JSON.stringify(result));
+        }
+        function oncommit(){
+            printResult();
+            salt = document.querySelector('#salt').value;
+            iter = document.querySelector('#iter').value;
+            word = document.querySelector('#word').value;
+            if(salt === '' || iter === ''){
+                return;
+            }
+            test();
+        }
+        function printResult(message){
+            if(typeof message === 'undefined'){
+                document.querySelector('#result').value = '';
+            }else{
+                document.querySelector('#result').value = document.querySelector('#result').value + message + '\n';
+            }
+        }
+    </script>
+</body>
+</html>

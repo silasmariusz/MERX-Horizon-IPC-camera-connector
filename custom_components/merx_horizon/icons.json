@@ -1,0 +1,19 @@
+{
+  "services": {
+    "ptz_control": {
+      "cmd": "mdi:pan-tilt-zoom",
+      "speed": "mdi:speedometer"
+    }
+  },
+  "entity": {
+    "camera": {
+      "merx_horizon": {
+        "default": "phu:merx-ipc-horizon-dome",
+        "state": {
+          "idle": "phu:merx-ipc-horizon-dome",
+          "recording": "phu:merx-ipc-horizon-dome-alt"
+        }
+      }
+    }
+  }
+}

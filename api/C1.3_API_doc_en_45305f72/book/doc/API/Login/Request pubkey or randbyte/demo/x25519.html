@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>X25519 crypto demo</title>
+    <script src="./secrypto_min.js"></script>
+    <style>
+        button{
+            width: 100px;
+            height: 35px;
+            background-color: #47a6ff;
+            border: none;
+            box-shadow: none;
+            border-radius: 5px;
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        button:hover{
+            background-color: white;
+            border: 1px solid #47a6ff;
+            color: #47a6ff;
+        }
+        input{
+            width: 300px;
+            height: 30px;
+            border: 2px solid #47a6ff;
+            border-radius: 5px;
+        }
+        label{
+            width: 150px;
+            display: block;
+            float: left;
+            line-height: 30px;
+            text-align: center;
+            
+        }
+        textarea{
+            border: 2px solid #47a6ff;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <label for="word">word:</label>
+    <input type="text" name="word" id="word">
+    <br>
+    <br>
+    <label for="peer_public">peer public:</label>
+    <input type="text" name="peer_public" id="peer_public">
+    <br>
+    <br>
+    <label for="peer_private">peer private:</label>
+    <input type="text" name="peer_private" id="peer_private">
+    <button id="commit" onclick="oncommit();">commit</button>
+    <br>
+    <br>
+    <label for="result">result:</label>
+    <textarea name="result" id="result" cols="60" rows="10"></textarea>
+    <script>
+        let serverPub = null;
+        let serverPri = null;
+        let word = '';
+        document.querySelector('#peer_public').value = '0vqI4TATBClicqdmbgN0SkoY0JZFQgNAraezi0q4B0FA=';
+        document.querySelector('#peer_private').value = '0aAtFU6NMHvnTwULWLQJG4tVF2d7rgK6SGt42FarinVc=';
+        function test(){
+            console.log('peer_public: '+serverPub);
+            printResult('peer_public: '+serverPub);
+            console.log('peer_private:',serverPri);
+            printResult('peer_private: '+serverPri);
+            let result = mycrypto.encodePasswordX25519(serverPub, word);
+            console.log('word: '+word);
+            printResult('word: '+word);
+            console.log('encrypted:',result);
+            printResult('encrypted: '+JSON.stringify(result));
+            result = mycrypto.decodePasswordX25519(result.public, serverPri, result.encrypted);
+            console.log('decode word: '+result);
+            printResult('decode word: '+result);
+        }
+        function oncommit(){
+            printResult();
+            serverPub = document.querySelector('#peer_public').value;
+            serverPri = document.querySelector('#peer_private').value;
+            word = document.querySelector('#word').value;
+            if(serverPub === ''){
+                return;
+            }
+            test();
+        }
+        function printResult(message){
+            if(typeof message === 'undefined'){
+                document.querySelector('#result').value = '';
+            }else{
+                document.querySelector('#result').value = document.querySelector('#result').value + message + '\n';
+            }
+        }
+    </script>
+</body>
+</html>

@@ -7,7 +7,10 @@ import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
+from .client import MerxHorizonClient
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -18,7 +21,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up MERX Horizon from a config entry."""
     hass.data.setdefault(DOMAIN, {})
     
-    # TODO: Initialize API client here and store it in hass.data[DOMAIN][entry.entry_id]
+    session = async_get_clientsession(hass)
+    client = MerxHorizonClient(
+        host=entry.data[CONF_HOST],
+        port=entry.data[CONF_PORT],
+        username=entry.data[CONF_USERNAME],
+        password=entry.data[CONF_PASSWORD],
+        session=session,
+    )
+    
+    hass.data[DOMAIN][entry.entry_id] = client
     
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True

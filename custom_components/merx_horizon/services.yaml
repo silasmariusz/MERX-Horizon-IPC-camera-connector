@@ -1,0 +1,31 @@
+# Copyright (c) 2026, Silas Mariusz Grzybacz
+
+ptz_control:
+  name: PTZ Control
+  description: Control the Pan, Tilt, and Zoom of the MERX Horizon camera.
+  fields:
+    cmd:
+      name: Command
+      description: The PTZ command to send (e.g., Ptz_Cmd_Up, Ptz_Cmd_Down, Ptz_Cmd_Left, Ptz_Cmd_Right, Ptz_Cmd_ZoomAdd, Ptz_Cmd_ZoomMinus).
+      example: Ptz_Cmd_Up
+      required: true
+      selector:
+        select:
+          options:
+            - Ptz_Cmd_Up
+            - Ptz_Cmd_Down
+            - Ptz_Cmd_Left
+            - Ptz_Cmd_Right
+            - Ptz_Cmd_ZoomAdd
+            - Ptz_Cmd_ZoomMinus
+    speed:
+      name: Speed
+      description: The speed of the PTZ movement (1-100).
+      example: 50
+      default: 50
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 100
+          step: 1
