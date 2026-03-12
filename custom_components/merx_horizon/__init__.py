@@ -15,7 +15,7 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = ["camera"]
+PLATFORMS = ["camera", "binary_sensor"]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up MERX Horizon from a config entry."""

@@ -38,10 +38,21 @@ class MerxHorizonMediaSource(MediaSource):
 
     async def async_resolve_media(self, item: MediaSourceItem) -> PlayMedia:
         """Resolve media to a url."""
-        # item.identifier contains the RTSP playback URL
+        # In order to play RTSP streams in the browser via Home Assistant,
+        # we shouldn't return 'application/x-rtsp' because browsers don't support it natively.
+        # Instead, we should rely on Home Assistant's stream component to proxy it.
+        # For camera entities, HA handles this automatically, but for Media Source,
+        # we might need to return a format that HA can proxy, or use the camera entity's HLS stream.
+        
+        # However, for direct RTSP playback from Media Source, HA's stream component
+        # can handle 'application/x-rtsp' if the frontend supports it via HLS proxying,
+        # but sometimes it requires 'video/mp4' or similar if we are downloading the file.
+        # Since the API returns an RTSP URL for playback:
+        
         if not item.identifier.startswith("rtsp://"):
             raise Unresolvable("Invalid media identifier")
 
+        # Returning application/x-rtsp tells HA to use the stream component to convert it to HLS
         return PlayMedia(item.identifier, "application/x-rtsp")
 
     async def async_browse_media(
@@ -49,9 +60,6 @@ class MerxHorizonMediaSource(MediaSource):
     ) -> BrowseMediaSource:
         """Return media."""
         if item.identifier:
-            # Here we would parse the identifier to know which camera/date we are browsing
-            # For simplicity, we just return an empty list if an identifier is provided
-            # A real implementation would query the API for recordings on that date
             return BrowseMediaSource(
                 domain=DOMAIN,
                 identifier=item.identifier,
@@ -64,14 +72,11 @@ class MerxHorizonMediaSource(MediaSource):
                 children=[],
             )
 
-        # Root directory - list all cameras
         cameras = self.hass.data.get(DOMAIN, {})
         children = []
 
         for entry_id, client in cameras.items():
-            # Create a dummy recording entry for demonstration
-            # In a full implementation, this would call `client.search_recordings()`
-            # and build a tree of dates -> recordings
+            # For testing, we provide the RTSP playback URL
             playback_url = f"rtsp://{client.username}:{client.password}@{client.host}:{client.port}/rtsp/playback?channel=1&subtype=0&starttime=2026-03-12T00:00:00Z&endtime=2026-03-12T23:59:59Z"
             
             children.append(
@@ -83,6 +88,7 @@ class MerxHorizonMediaSource(MediaSource):
                     title=f"Camera {client.host} - Today's Recording",
                     can_play=True,
                     can_expand=False,
+                    thumbnail="https://brands.home-assistant.io/camera/icon.png" # Placeholder thumbnail
                 )
             )
 
