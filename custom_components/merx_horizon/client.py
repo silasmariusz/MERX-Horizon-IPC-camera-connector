@@ -180,14 +180,20 @@ class MerxHorizonClient:
             _LOGGER.error("Failed to get snapshot: %s", err)
         return b""
 
-    async def control_ptz(self, channel: str, cmd: str, speed: int = 50) -> Dict[str, Any]:
+    async def control_ptz(self, channel: str, cmd: str, speed: int = 50, state: Optional[str] = None) -> Dict[str, Any]:
         """Control PTZ."""
         data = {
             "channel": channel,
             "cmd": cmd,
             "speed": speed
         }
-        return await self._request("POST", "/API/PreviewChannel/PTZ/Control", json_data=data)
+        if state:
+            data["state"] = state
+            
+        _LOGGER.debug("Sending PTZ command to %s: %s", channel, data)
+        response = await self._request("POST", "/API/PreviewChannel/PTZ/Control", json_data=data)
+        _LOGGER.debug("PTZ response: %s", response)
+        return response
 
     async def check_events(self) -> Dict[str, Any]:
         """Poll for events."""

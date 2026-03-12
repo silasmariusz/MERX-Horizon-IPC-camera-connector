@@ -3,6 +3,7 @@ Copyright (c) 2026, Silas Mariusz Grzybacz
 
 Camera platform for MERX Horizon IPC Camera.
 """
+import asyncio
 import logging
 import voluptuous as vol
 
@@ -23,6 +24,7 @@ SERVICE_PTZ_CONTROL = "ptz_control"
 PTZ_SCHEMA = {
     vol.Required("cmd"): cv.string,
     vol.Optional("speed", default=50): cv.positive_int,
+    vol.Optional("state"): cv.string,
 }
 
 async def async_setup_entry(
@@ -105,6 +107,12 @@ class MerxHorizonCamera(Camera):
         self._attr_motion_detection_enabled = False
         self.async_write_ha_state()
 
-    async def async_ptz_control(self, cmd: str, speed: int) -> None:
+    async def async_ptz_control(self, cmd: str, speed: int, state: str = None) -> None:
         """Control PTZ."""
-        await self._client.control_ptz(self._channel, cmd, speed)
+        if state:
+            await self._client.control_ptz(self._channel, cmd, speed, state)
+        else:
+            # If no state is provided, assume a "step" action (Start then Stop after 0.5s)
+            await self._client.control_ptz(self._channel, cmd, speed, "Start")
+            await asyncio.sleep(0.5)
+            await self._client.control_ptz(self._channel, cmd, speed, "Stop")

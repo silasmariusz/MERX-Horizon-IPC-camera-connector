@@ -19,6 +19,7 @@ from homeassistant.components.media_source.models import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.components.stream import create_stream
+from homeassistant.components.camera import DynamicStreamSettings
 
 from .const import DOMAIN
 
@@ -45,7 +46,7 @@ class MerxHorizonMediaSource(MediaSource):
 
         try:
             # Create a stream to proxy the RTSP URL to HLS
-            stream = create_stream(self.hass, item.identifier, {}, item.identifier)
+            stream = create_stream(self.hass, item.identifier, {}, DynamicStreamSettings())
             stream.add_provider("hls")
             url = stream.endpoint_url("hls")
             return PlayMedia(url, "application/vnd.apple.mpegurl")
@@ -130,25 +131,28 @@ class MerxHorizonMediaSource(MediaSource):
             date_str_dashed = parts[2] # MM-DD-YYYY
             date_str = date_str_dashed.replace("-", "/") # Convert back to MM/DD/YYYY for API
             
-            client = cameras.get(entry_id)
-            if not client:
-                raise BrowseError("Camera not found")
+                        client = cameras.get(entry_id)
+                        if not client:
+                            raise BrowseError("Camera not found")
 
-            children = []
+                        # Get RTSP port from config entry
+                        config_entry = self.hass.config_entries.async_get_entry(entry_id)
+                        rtsp_port = config_entry.data.get("rtsp_port", 554) if config_entry else 554
+
+                        children = []
             
             try:
                 # Search for recordings on this date
                 # record_type 4294967295 means all records
-                payload = {
-                    "channel": ["CH1"],
-                    "start_date": date_str,
-                    "start_time": "00:00:00",
-                    "end_date": date_str,
-                    "end_time": "23:59:59",
-                    "record_type": 4294967295,
-                    "record_type_ex": [4294967295],
-                    "stream_mode": "Mainstream"
-                }
+                            payload = {
+                                "channel": ["CH1"],
+                                "start_date": date_str,
+                                "start_time": "00:00:00",
+                                "end_date": date_str,
+                                "end_time": "23:59:59",
+                                "record_type": 4294967295,
+                                "stream_mode": "Mainstream"
+                            }
                 
                 response = await client._request("POST", "/API/Playback/SearchRecord/Search", json_data=payload)
                 
@@ -175,12 +179,12 @@ class MerxHorizonMediaSource(MediaSource):
                             m, d, y = date_str.split("/")
                             iso_date = f"{y}-{m}-{d}"
                             
-                            start_iso = f"{iso_date}T{start_time}Z"
-                            end_iso = f"{iso_date}T{end_time}Z"
-                            
-                            playback_url = f"rtsp://{client.username}:{client.password}@{client.host}:{client.port}/rtsp/playback?channel=1&subtype=0&starttime={start_iso}&endtime={end_iso}"
-                            
-                            children.append(
+                                        start_iso = f"{iso_date}T{start_time}Z"
+                                        end_iso = f"{iso_date}T{end_time}Z"
+                                        
+                                        playback_url = f"rtsp://{client.username}:{client.password}@{client.host}:{rtsp_port}/rtsp/playback?channel=1&subtype=0&starttime={start_iso}&endtime={end_iso}"
+                                        
+                                        children.append(
                                 BrowseMediaSource(
                                     domain=DOMAIN,
                                     identifier=playback_url,

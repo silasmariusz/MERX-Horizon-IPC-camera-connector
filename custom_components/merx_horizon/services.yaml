@@ -29,3 +29,13 @@ ptz_control:
           min: 1
           max: 100
           step: 1
+    state:
+      name: State
+      description: The state for continuous PTZ commands (Start or Stop).
+      example: Start
+      required: false
+      selector:
+        select:
+          options:
+            - Start
+            - Stop
