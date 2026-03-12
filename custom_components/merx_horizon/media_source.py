@@ -96,7 +96,7 @@ class MerxHorizonMediaSource(MediaSource):
             children = []
             for i in range(3):
                 date = datetime.datetime.now() - datetime.timedelta(days=i)
-                date_str = date.strftime("%m/%d/%Y")
+                date_str = date.strftime("%m-%d-%Y") # Use dashes for identifier to avoid URL routing issues
                 display_date = "Today" if i == 0 else "Yesterday" if i == 1 else date.strftime("%Y-%m-%d")
                 
                 children.append(
@@ -127,7 +127,8 @@ class MerxHorizonMediaSource(MediaSource):
             # Date level: List recordings for that date
             parts = item.identifier.split("_")
             entry_id = parts[1]
-            date_str = parts[2] # MM/DD/YYYY
+            date_str_dashed = parts[2] # MM-DD-YYYY
+            date_str = date_str_dashed.replace("-", "/") # Convert back to MM/DD/YYYY for API
             
             client = cameras.get(entry_id)
             if not client:
@@ -145,6 +146,7 @@ class MerxHorizonMediaSource(MediaSource):
                     "end_date": date_str,
                     "end_time": "23:59:59",
                     "record_type": 4294967295,
+                    "record_type_ex": [4294967295],
                     "stream_mode": "Mainstream"
                 }
                 
@@ -183,7 +185,7 @@ class MerxHorizonMediaSource(MediaSource):
                                     domain=DOMAIN,
                                     identifier=playback_url,
                                     media_class="video",
-                                    media_content_type="application/x-rtsp",
+                                    media_content_type="video/mp4",
                                     title=f"{start_time} - {end_time} ({type_name})",
                                     can_play=True,
                                     can_expand=False,
