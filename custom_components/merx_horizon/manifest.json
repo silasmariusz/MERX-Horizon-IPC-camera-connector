@@ -1,0 +1,9 @@
+{
+  "domain": "merx_horizon",
+  "name": "MERX Horizon IPC Camera",
+  "codeowners": ["@silasmariusz"],
+  "config_flow": true,
+  "dependencies": ["ffmpeg", "stream"],
+  "iot_class": "local_polling",
+  "version": "1.0.0"
+}
