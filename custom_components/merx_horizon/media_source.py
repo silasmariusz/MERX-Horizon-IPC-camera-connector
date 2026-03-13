@@ -116,10 +116,12 @@ class MerxHorizonMediaSource(MediaSource):
                             
                             if month_data and "data" in month_data and "is_has_rec" in month_data["data"]:
                                 is_has_rec = month_data["data"]["is_has_rec"]
-                                # API returns 31 array elements (0-indexed for days 1-31)
-                                # is_has_rec[i] == 1 means recordings exist for day i+1
+                                # Note: The MERX API returns exactly 31 elements in the 'is_has_rec' array
+                                # regardless of the actual number of days in the month.
+                                # index 0 corresponds to day 1, index 1 to day 2, and so on.
+                                # is_has_rec[i] == 1 means recordings physically exist for day i+1.
                                 
-                                # Process from end of month to beginning
+                                # Process from end of month to beginning (e.g. latest recordings first)
                                 for i in range(len(is_has_rec) - 1, -1, -1):
                                     if is_has_rec[i] == 1:
                                         day = i + 1

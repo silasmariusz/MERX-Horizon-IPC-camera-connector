@@ -178,7 +178,11 @@ class MerxHorizonClient:
 
     async def get_playback_month(self, channel: str, month: int, year: int) -> Dict[str, Any]:
         """Get available recording dates for a month."""
-        # Format start_date as MM/01/YYYY
+        # Note: The MERX API requires a full date string (MM/DD/YYYY) even when querying
+        # an entire month's data via the /API/Playback/SearchMonth/Get endpoint.
+        # We hardcode the day to '01' here because the API ignores the specific day
+        # and always returns the recording availability array (is_has_rec) for the 
+        # entire month that matches the provided month and year.
         start_date = f"{month:02d}/01/{year:04d}"
         payload = {
             "channel": [channel],
