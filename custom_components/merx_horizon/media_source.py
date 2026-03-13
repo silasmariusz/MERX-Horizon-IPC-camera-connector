@@ -240,7 +240,7 @@ class MerxHorizonMediaSource(MediaSource):
                             start_iso = f"{iso_date}T{start_time}Z"
                             end_iso = f"{iso_date}T{end_time}Z"
                             
-                            playback_url = f"rtsp://{client.username}:{client.password}@{client.host}:{rtsp_port}/rtsp/playback?channel=1&subtype=0&starttime={start_iso}&endtime={end_iso}"
+                            playback_url = f"rtsp://{client.username}:{client.password}@{client.host}:{rtsp_port}/rtsp/playback?channel=1&subtype=0&starttime={start_iso}&endtime={end_iso}&localtime=true"
                             
                             children.append(
                                 BrowseMediaSource(
