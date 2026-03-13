@@ -95,91 +95,91 @@ class MerxHorizonMediaSource(MediaSource):
                 children=children,
             )
 
-                    if item.identifier.startswith("camera_"):
-                        # Camera level: Query API for available dates
-                        entry_id = item.identifier.replace("camera_", "")
-                        client = cameras.get(entry_id)
-                        if not client:
-                            raise BrowseError("Camera not found")
+        if item.identifier.startswith("camera_"):
+            # Camera level: Query API for available dates
+            entry_id = item.identifier.replace("camera_", "")
+            client = cameras.get(entry_id)
+            if not client:
+                raise BrowseError("Camera not found")
 
-                        # Default to current month
-                        now = datetime.datetime.now()
-                        month = now.month
-                        year = now.year
-                        
-                        children = []
-                        
-                        try:
-                            # Use default channel CH1
-                            channel = "CH1"
-                            month_data = await client.get_playback_month(channel, month, year)
+            # Default to current month
+            now = datetime.datetime.now()
+            month = now.month
+            year = now.year
+            
+            children = []
+            
+            try:
+                # Use default channel CH1
+                channel = "CH1"
+                month_data = await client.get_playback_month(channel, month, year)
+                
+                if month_data and "data" in month_data and "is_has_rec" in month_data["data"]:
+                    is_has_rec = month_data["data"]["is_has_rec"]
+                    # Note: The MERX API returns exactly 31 elements in the 'is_has_rec' array
+                    # regardless of the actual number of days in the month.
+                    # index 0 corresponds to day 1, index 1 to day 2, and so on.
+                    # is_has_rec[i] == 1 means recordings physically exist for day i+1.
+                    
+                    # Process from end of month to beginning (e.g. latest recordings first)
+                    for i in range(len(is_has_rec) - 1, -1, -1):
+                        if is_has_rec[i] == 1:
+                            day = i + 1
+                            # Skip future days
+                            if year == now.year and month == now.month and day > now.day:
+                                continue
+                                
+                            # Construct date strings
+                            date_obj = datetime.datetime(year, month, day)
+                            date_str = date_obj.strftime("%m-%d-%Y")
+                            display_date = date_obj.strftime("%Y-%m-%d")
                             
-                            if month_data and "data" in month_data and "is_has_rec" in month_data["data"]:
-                                is_has_rec = month_data["data"]["is_has_rec"]
-                                # Note: The MERX API returns exactly 31 elements in the 'is_has_rec' array
-                                # regardless of the actual number of days in the month.
-                                # index 0 corresponds to day 1, index 1 to day 2, and so on.
-                                # is_has_rec[i] == 1 means recordings physically exist for day i+1.
+                            # Show "Today" or "Yesterday" if applicable
+                            if date_obj.date() == now.date():
+                                display_date = "Today"
+                            elif date_obj.date() == (now - datetime.timedelta(days=1)).date():
+                                display_date = "Yesterday"
                                 
-                                # Process from end of month to beginning (e.g. latest recordings first)
-                                for i in range(len(is_has_rec) - 1, -1, -1):
-                                    if is_has_rec[i] == 1:
-                                        day = i + 1
-                                        # Skip future days
-                                        if year == now.year and month == now.month and day > now.day:
-                                            continue
-                                            
-                                        # Construct date strings
-                                        date_obj = datetime.datetime(year, month, day)
-                                        date_str = date_obj.strftime("%m-%d-%Y")
-                                        display_date = date_obj.strftime("%Y-%m-%d")
-                                        
-                                        # Show "Today" or "Yesterday" if applicable
-                                        if date_obj.date() == now.date():
-                                            display_date = "Today"
-                                        elif date_obj.date() == (now - datetime.timedelta(days=1)).date():
-                                            display_date = "Yesterday"
-                                            
-                                        children.append(
-                                            BrowseMediaSource(
-                                                domain=DOMAIN,
-                                                identifier=f"date_{entry_id}_{date_str}",
-                                                media_class="directory",
-                                                media_content_type="video",
-                                                title=display_date,
-                                                can_play=False,
-                                                can_expand=True,
-                                            )
-                                        )
-                                        
-                            # If no recordings found or error, provide an empty list
-                            if not children:
-                                children.append(
-                                    BrowseMediaSource(
-                                        domain=DOMAIN,
-                                        identifier=f"empty_{entry_id}",
-                                        media_class="directory",
-                                        media_content_type="video",
-                                        title="No recordings found this month",
-                                        can_play=False,
-                                        can_expand=False,
-                                    )
+                            children.append(
+                                BrowseMediaSource(
+                                    domain=DOMAIN,
+                                    identifier=f"date_{entry_id}_{date_str}",
+                                    media_class="directory",
+                                    media_content_type="video",
+                                    title=display_date,
+                                    can_play=False,
+                                    can_expand=True,
                                 )
-                                
-                        except Exception as err:
-                            _LOGGER.error("Error fetching available dates: %s", err)
-
-                        return BrowseMediaSource(
+                            )
+                            
+                # If no recordings found or error, provide an empty list
+                if not children:
+                    children.append(
+                        BrowseMediaSource(
                             domain=DOMAIN,
-                            identifier=item.identifier,
+                            identifier=f"empty_{entry_id}",
                             media_class="directory",
                             media_content_type="video",
-                            title="Select Date",
+                            title="No recordings found this month",
                             can_play=False,
-                            can_expand=True,
-                            children_media_class="directory",
-                            children=children,
+                            can_expand=False,
                         )
+                    )
+                    
+            except Exception as err:
+                _LOGGER.error("Error fetching available dates: %s", err)
+
+            return BrowseMediaSource(
+                domain=DOMAIN,
+                identifier=item.identifier,
+                media_class="directory",
+                media_content_type="video",
+                title="Select Date",
+                can_play=False,
+                can_expand=True,
+                children_media_class="directory",
+                children=children,
+            )
 
         if item.identifier.startswith("date_"):
             # Date level: List recordings for that date

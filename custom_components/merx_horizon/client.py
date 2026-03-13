@@ -158,7 +158,7 @@ class MerxHorizonClient:
                 response.raise_for_status()
                 return await response.json()
         except Exception as err:
-            _LOGGER.error("Error communicating with MERX Horizon API: %s", err)
+            _LOGGER.debug("Error communicating with MERX Horizon API: %s %s", type(err).__name__, str(err))
             raise
 
     async def send_heartbeat(self) -> bool:

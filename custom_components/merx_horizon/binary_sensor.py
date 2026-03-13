@@ -51,7 +51,7 @@ async def async_setup_entry(
             events = await client.check_events()
             return events.get("data", {})
         except Exception as err:
-            raise UpdateFailed(f"Error communicating with API: {err}")
+            raise UpdateFailed(f"Error communicating with API: {type(err).__name__} {str(err)}")
 
     coordinator = DataUpdateCoordinator(
         hass,
