@@ -45,8 +45,13 @@ class MerxHorizonMediaSource(MediaSource):
             raise Unresolvable("Invalid media identifier")
 
         try:
-            # Create a stream to proxy the RTSP URL to HLS
-            stream = create_stream(self.hass, item.identifier, {}, DynamicStreamSettings())
+            # We must pass the audio/video options and enable WebRTC/HLS properly
+            # DynamicStreamSettings was correctly passed, but the format might need specific options.
+            # Using basic options often helps stream component handle generic RTSP streams.
+            stream_options = {
+                "rtsp_transport": "tcp",
+            }
+            stream = create_stream(self.hass, item.identifier, stream_options, DynamicStreamSettings())
             stream.add_provider("hls")
             url = stream.endpoint_url("hls")
             return PlayMedia(url, "application/vnd.apple.mpegurl")
@@ -90,39 +95,89 @@ class MerxHorizonMediaSource(MediaSource):
                 children=children,
             )
 
-        if item.identifier.startswith("camera_"):
-            # Camera level: List dates (Looking back up to 10 days)
-            entry_id = item.identifier.replace("camera_", "")
-            
-            children = []
-            for i in range(10): # Look back 10 days
-                date = datetime.datetime.now() - datetime.timedelta(days=i)
-                date_str = date.strftime("%m-%d-%Y") # Use dashes for identifier to avoid URL routing issues
-                display_date = "Today" if i == 0 else "Yesterday" if i == 1 else date.strftime("%Y-%m-%d")
-                
-                children.append(
-                    BrowseMediaSource(
-                        domain=DOMAIN,
-                        identifier=f"date_{entry_id}_{date_str}",
-                        media_class="directory",
-                        media_content_type="video",
-                        title=display_date,
-                        can_play=False,
-                        can_expand=True,
-                    )
-                )
+                    if item.identifier.startswith("camera_"):
+                        # Camera level: Query API for available dates
+                        entry_id = item.identifier.replace("camera_", "")
+                        client = cameras.get(entry_id)
+                        if not client:
+                            raise BrowseError("Camera not found")
 
-            return BrowseMediaSource(
-                domain=DOMAIN,
-                identifier=item.identifier,
-                media_class="directory",
-                media_content_type="video",
-                title="Select Date",
-                can_play=False,
-                can_expand=True,
-                children_media_class="directory",
-                children=children,
-            )
+                        # Default to current month
+                        now = datetime.datetime.now()
+                        month = now.month
+                        year = now.year
+                        
+                        children = []
+                        
+                        try:
+                            # Use default channel CH1
+                            channel = "CH1"
+                            month_data = await client.get_playback_month(channel, month, year)
+                            
+                            if month_data and "data" in month_data and "is_has_rec" in month_data["data"]:
+                                is_has_rec = month_data["data"]["is_has_rec"]
+                                # API returns 31 array elements (0-indexed for days 1-31)
+                                # is_has_rec[i] == 1 means recordings exist for day i+1
+                                
+                                # Process from end of month to beginning
+                                for i in range(len(is_has_rec) - 1, -1, -1):
+                                    if is_has_rec[i] == 1:
+                                        day = i + 1
+                                        # Skip future days
+                                        if year == now.year and month == now.month and day > now.day:
+                                            continue
+                                            
+                                        # Construct date strings
+                                        date_obj = datetime.datetime(year, month, day)
+                                        date_str = date_obj.strftime("%m-%d-%Y")
+                                        display_date = date_obj.strftime("%Y-%m-%d")
+                                        
+                                        # Show "Today" or "Yesterday" if applicable
+                                        if date_obj.date() == now.date():
+                                            display_date = "Today"
+                                        elif date_obj.date() == (now - datetime.timedelta(days=1)).date():
+                                            display_date = "Yesterday"
+                                            
+                                        children.append(
+                                            BrowseMediaSource(
+                                                domain=DOMAIN,
+                                                identifier=f"date_{entry_id}_{date_str}",
+                                                media_class="directory",
+                                                media_content_type="video",
+                                                title=display_date,
+                                                can_play=False,
+                                                can_expand=True,
+                                            )
+                                        )
+                                        
+                            # If no recordings found or error, provide an empty list
+                            if not children:
+                                children.append(
+                                    BrowseMediaSource(
+                                        domain=DOMAIN,
+                                        identifier=f"empty_{entry_id}",
+                                        media_class="directory",
+                                        media_content_type="video",
+                                        title="No recordings found this month",
+                                        can_play=False,
+                                        can_expand=False,
+                                    )
+                                )
+                                
+                        except Exception as err:
+                            _LOGGER.error("Error fetching available dates: %s", err)
+
+                        return BrowseMediaSource(
+                            domain=DOMAIN,
+                            identifier=item.identifier,
+                            media_class="directory",
+                            media_content_type="video",
+                            title="Select Date",
+                            can_play=False,
+                            can_expand=True,
+                            children_media_class="directory",
+                            children=children,
+                        )
 
         if item.identifier.startswith("date_"):
             # Date level: List recordings for that date

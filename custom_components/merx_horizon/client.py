@@ -137,22 +137,8 @@ class MerxHorizonClient:
                 
                 if response.status == 400:
                     text = await response.text()
-                    if "one_IE" in text:
-                        # Session conflict, try to re-login
-                        self.cookies = {}
-                        await self.logout()
-                        if await self.login():
-                            if self.token:
-                                headers["token"] = self.token
-                            if self.csrf_token:
-                                headers["X-csrftoken"] = self.csrf_token
-                            async with self.session.request(
-                                method, url, json=payload, headers=headers, cookies=self.cookies, timeout=10
-                            ) as retry_response:
-                                retry_response.raise_for_status()
-                                return await retry_response.json()
-                    elif "no_heartbeat" in text:
-                        # Session expired due to no heartbeat, try to re-login
+                    if "one_IE" in text or "no_heartbeat" in text or "expired" in text or "no_login" in text:
+                        # Session conflict or expired, try to re-login
                         self.cookies = {}
                         await self.logout()
                         if await self.login():
@@ -189,6 +175,23 @@ class MerxHorizonClient:
     async def get_device_info(self) -> Dict[str, Any]:
         """Get device information."""
         return await self._request("POST", "/API/Login/DeviceInfo/Get")
+
+    async def get_playback_month(self, channel: str, month: int, year: int) -> Dict[str, Any]:
+        """Get available recording dates for a month."""
+        # Format start_date as MM/01/YYYY
+        start_date = f"{month:02d}/01/{year:04d}"
+        payload = {
+            "channel": [channel],
+            "stream_type": "Mainstream",
+            "start_date": start_date,
+            "search_type": "Record"
+        }
+        
+        try:
+            return await self._request("POST", "/API/Playback/SearchMonth/Get", json_data=payload)
+        except Exception as err:
+            _LOGGER.error("Failed to get playback month for %s: %s", channel, err)
+            return {}
 
     async def get_snapshot(self, channel: str = "CH1") -> bytes:
         """Get a snapshot from the camera."""
